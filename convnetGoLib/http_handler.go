@@ -17,6 +17,7 @@ func StartHttpServer(port, maxarea int) {
 	for {
 		err := e.Start(":" + ProtocolToStr(httptport))
 		if err != nil {
+			e.Close()
 			httptport++
 			if httptport > port+maxarea {
 				return
