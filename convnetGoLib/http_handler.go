@@ -9,15 +9,16 @@ import (
 )
 
 func StartHttpServer(port, maxarea int) {
-	e := echo.New()
+
 	httptport := port
 	//绑定HTTP-API服务
-	SetApi(e)
+
 	// Start server
 	for {
-		err := e.Start(":" + ProtocolToStr(httptport))
+		e := echo.New()
+		SetApi(e)
+		err := e.Start("0.0.0.0:" + ProtocolToStr(httptport))
 		if err != nil {
-			e.Close()
 			httptport++
 			if httptport > port+maxarea {
 				return
