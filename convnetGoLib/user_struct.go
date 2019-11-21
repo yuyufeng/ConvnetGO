@@ -12,38 +12,38 @@ const (
 )
 
 type User struct {
-	Con_AContext *net.UDPConn
+	con_AContext *net.UDPConn
 	Con_Status   int  //连接状态
 	ISOnline     bool //是否在线
 
-	UserID         int
+	UserID         int64
 	UserName       string
 	AuthorPassword string //访问密码
 	MacAddress     string //MAC地址
 
-	MyPeerPort    int
-	Con_RetryTime int //尝试重连的次数
+	myPeerPort    int
+	con_RetryTime int //尝试重连的次数
 	Con_send      int64
 	Con_recv      int64
-	Con_lastSend  int64
+	con_lastSend  int64
 	Needpass      bool
-	Con_addr      *net.UDPAddr
+	con_addr      *net.UDPAddr
 }
 
 //确认连接后的更新
 func (user *User) RefInfoByPack(conn *net.UDPConn, mac string) {
 	user.MacAddress = mac
-	user.Con_AContext = conn
+	user.con_AContext = conn
 	addr := conn.RemoteAddr()
 	strs := strings.Split(addr.String(), ":")
-	user.Con_addr = &net.UDPAddr{IP: net.ParseIP(strs[0]), Port: Strtoint(strs[1])}
+	user.con_addr = &net.UDPAddr{IP: net.ParseIP(strs[0]), Port: Strtoint(strs[1])}
 	user.ISOnline = true
 }
 
 //刷新用户信息
 func (user *User) RefInfoByCmd(ip, port, mac string) {
 	user.MacAddress = mac
-	user.Con_addr = &net.UDPAddr{IP: net.ParseIP(ip), Port: int(StrToProtocol(port))}
+	user.con_addr = &net.UDPAddr{IP: net.ParseIP(ip), Port: int(StrToProtocol(port))}
 	user.ISOnline = true
 }
 
@@ -57,12 +57,12 @@ func UdpSendBuff(conn *net.UDPConn, buff []byte, remoteIP *net.UDPAddr) {
 
 //发送信息
 func (user *User) SendCmd(message string) {
-	UdpSend(user.Con_AContext, message, user.Con_addr)
+	UdpSend(user.con_AContext, message, user.con_addr)
 }
 
 //发送信息
 func (user *User) SendBuff(buff []byte) {
-	UdpSendBuff(user.Con_AContext, buff, user.Con_addr)
+	UdpSendBuff(user.con_AContext, buff, user.con_addr)
 }
 
 func (user *User) TryConnect(userpass string) {
@@ -76,16 +76,16 @@ func (user *User) TryConnect(userpass string) {
 			Log(user, "需要密码")
 		}
 		user.Con_Status = CON_DISCONNECT
-		user.Con_RetryTime = 0
+		user.con_RetryTime = 0
 		return
 	}
 
-	if user.Con_RetryTime < 7 {
-		user.Con_RetryTime++
-		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(client.MyUserid) + "," + Inttostr(user.Con_RetryTime) + "," + user.AuthorPassword + "*")
+	if user.con_RetryTime < 7 {
+		user.con_RetryTime++
+		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(client.MyUserid) + "," + Inttostr(user.con_RetryTime) + "," + user.AuthorPassword + "*")
 		user.Con_Status = CON_CONNECTING
 	} else { //user.Con_RetryTime > 7
-		user.Con_RetryTime = 0
+		user.con_RetryTime = 0
 		user.Con_Status = CON_DISCONNECT
 		return
 	}

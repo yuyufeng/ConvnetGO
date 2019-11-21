@@ -19,7 +19,7 @@ type Client struct {
 	MyInnerIp     string //内网IP，用于内网互联
 
 	g_conn      *net.TCPConn
-	g_AllUser   []User
+	g_AllUser   Group
 	g_Groups    []Group
 	g_udpserver *net.UDPConn
 }

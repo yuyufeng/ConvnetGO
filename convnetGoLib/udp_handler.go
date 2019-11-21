@@ -111,7 +111,7 @@ func ExecUdpComand(conn *net.UDPConn, cmdField []string) {
 
 func cmdUDP_P2PResp(conn *net.UDPConn, cmdField []string) {
 	//UDP服务端接收针对于P2P部分的处理
-	tmpuser := getUserByid(client.g_AllUser, Strtoint(cmdField[2]))
+	tmpuser := client.g_AllUser.getUserByid(Strtoint64(cmdField[2]))
 	switch StrToProtocol(cmdField[1]) {
 	case UDP_C2C: //================>
 		//                        CMD                         TYPE                      ID           			   MAC

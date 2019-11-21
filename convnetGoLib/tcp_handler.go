@@ -115,20 +115,22 @@ func Udpconfim(port string) string {
 
 func cmdOnlinetellRespDecode(cmdField []string) {
 	Log("用户上线", cmdField)
-	user := getUserByid(client.g_AllUser, Strtoint(cmdField[2]))
+	client.g_AllUser.getUserByid(1)
+	user := client.g_AllUser.getUserByid(Strtoint64(cmdField[2]))
 	user.TryConnect("")
 }
 
 func cmdKickOutRespDecode(cmdField []string) {
 	Log("用户离开组", cmdField)
-
+	user := client.g_AllUser.getUserByid(Strtoint64(cmdField[2]))
+	user.TryConnect("")
 }
 
 func cmdCalltoUserRespDecode(cmdField []string) {
 	Log("用户请求连接", cmdField)
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
-	tmpuserid := Strtoint(cmdField[2])
-	tmpuser := getUserByid(client.g_AllUser, tmpuserid)
+	tmpuserid := Strtoint64(cmdField[2])
+	tmpuser := client.g_AllUser.getUserByid(tmpuserid)
 
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
 	tmpuser.RefInfoByCmd(cmdField[3], cmdField[4], cmdField[5])
@@ -143,13 +145,12 @@ func cmdCalltoUserRespDecode(cmdField []string) {
 	case UDP_S2S, UDP_C2S:
 		Log("呼入方准备好直连")
 		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + ProtocolToStr(client.MyUserid) + "," + client.Mymac + ","
-		UdpSend(client.g_udpserver, tmpstr, tmpuser.Con_addr)
-		UdpSend(client.g_udpserver, tmpstr, tmpuser.Con_addr)
-		UdpSend(client.g_udpserver, tmpstr, tmpuser.Con_addr)
-
+		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
+		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
+		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 	case UDP_GETPORT:
 		int, conn := GetPortFromServer(client.ServerUdpPort, 10800, client.ServerIP, true)
-		tmpuser.Con_AContext = conn
+		tmpuser.con_AContext = conn
 		if client.MyNatType == NAT_SYMMETRIC {
 			int++
 		}
@@ -167,10 +168,10 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 	//返回用户信息
 	var tmpGroup *Group
 	var strstep = 3
-	var tmpuserid int
 	tmpGroup = getGroupByid(0)
 	if tmpGroup == nil {
 		tmpGroup = &Group{}
+		tmpGroup.Init()
 		tmpGroup.GroupID = 0
 		tmpGroup.GroupName = "好友组"
 		client.g_Groups = append(client.g_Groups, *tmpGroup)
@@ -179,14 +180,15 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 	}
 	tmpGroup = getGroupByid(0)
 	for i := 0; i < ((len(cmdField)-1)/strstep)-1; i++ {
-		tmpuserid, _ = strconv.Atoi(cmdField[i*strstep+1])
-		tmpuser := getUserByid(client.g_AllUser, tmpuserid)
+		tmpuserid := Strtoint64(cmdField[i*strstep+1])
+		tmpuser := client.g_AllUser.getUserByid(tmpuserid)
+
 		if tmpuser == nil {
 			user := &User{}
 			user.UserID = tmpuserid
 			user.UserName = cmdField[i*strstep+2]
 			user.ISOnline = cmdField[i*strstep+3] == "T"
-			client.g_AllUser = append(client.g_AllUser, *user)
+			client.g_AllUser.Adduser(user)
 			tmpGroup.Adduser(user)
 		} else {
 			tmpGroup.Adduser(tmpuser)
@@ -196,7 +198,7 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 
 func cmdGetGroupInfoRespDecode(cmdField []string) {
 	var strstep = 4
-	var tmpuserid, tmpgourpid int
+	var tmpgourpid int
 	var tmpGroup *Group
 	Log("组信息创建")
 
@@ -207,6 +209,7 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 			tmpGroup = getGroupByid(tmpgourpid)
 			if tmpGroup == nil {
 				tmpGroup = new(Group)
+				tmpGroup.Init()
 				tmpGroup.GroupID = tmpgourpid
 				tmpGroup.GroupName = cmdField[i*strstep+2]
 				client.g_Groups = append(client.g_Groups, *tmpGroup)
@@ -219,14 +222,14 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 		//应该是垃圾回收机制的问题，不重新get一下的话会毫无作用
 		tmpGroup = getGroupByid(tmpgourpid)
 		if cmdField[i*strstep+1] == "U" {
-			tmpuserid, _ = strconv.Atoi(cmdField[i*strstep+3])
-			tmpuser := getUserByid(client.g_AllUser, tmpuserid)
+			tmpuserid := Strtoint64(cmdField[i*strstep+3])
+			tmpuser := client.g_AllUser.getUserByid(tmpuserid)
 			if tmpuser == nil {
 				user := &User{}
 				user.UserID = tmpuserid
 				user.UserName = cmdField[i*strstep+2]
 				user.ISOnline = cmdField[i*strstep+4] == "T"
-				client.g_AllUser = append(client.g_AllUser, *user)
+				client.g_AllUser.Adduser(user)
 				tmpGroup.Adduser(user)
 			} else {
 				tmpGroup.Adduser(tmpuser)
@@ -243,17 +246,9 @@ func getGroupByid(tmpgourpid int) *Group {
 	}
 	return nil
 }
-func getUserByid(userlist []User, tmpuserid int) *User {
-	for i := 0; i < len(userlist); i++ {
-		if userlist[i].UserID == tmpuserid {
-			return &userlist[i]
-		}
-	}
-	return nil
-}
 
 func cmdUserNeedPassDecode(cmdField []string) {
-	user := getUserByid(client.g_AllUser, Strtoint(cmdField[1]))
+	user := client.g_AllUser.getUserByid(Strtoint64(cmdField[1]))
 	if user != nil {
 		user.Needpass = true
 		user.AuthorPassword = ""
