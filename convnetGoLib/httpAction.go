@@ -11,6 +11,7 @@ func formatinput(str string) string {
 func SetApi(e *echo.Echo) {
 	e.GET("/", welcome)
 	e.GET("/login", login)
-	e.GET("/UserList",userlist)
-
+	e.GET("/groupList", grouplist)
+	e.GET("/userList", allUserlist)
+	e.GET("/info", clientinfo)
 }

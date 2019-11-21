@@ -256,7 +256,7 @@ func sendCmd(str string) {
 	sendCmdBuff([]byte(str))
 }
 func sendCmdBuff(context []byte) {
-	g_conn.Write(append(append([]byte(""), IntToBytes(int32(len(context)))...), context...))
+	client.g_conn.Write(append(append([]byte(""), IntToBytes(int32(len(context)))...), context...))
 	// var buffer bytes.Buffer
 	// asd := IntToBytes(int32(len(context)))
 	// buffer.Write(asd)

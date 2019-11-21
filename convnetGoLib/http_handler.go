@@ -9,13 +9,12 @@ import (
 )
 
 func StartHttpServer(port, maxarea int) {
-
 	httptport := port
-	//绑定HTTP-API服务
 
 	// Start server
 	for {
 		e := echo.New()
+		//绑定HTTP-API服务
 		SetApi(e)
 		err := e.Start("0.0.0.0:" + ProtocolToStr(httptport))
 		if err != nil {
@@ -31,36 +30,49 @@ func StartHttpServer(port, maxarea int) {
 }
 
 func welcome(c echo.Context) error {
-	return c.String(http.StatusOK, "Hello, World!")
+	return c.String(http.StatusOK, "{\"info\":\"Convnet Api\"}")
 }
-func userlist(c echo.Context) error {
-	data, err := json.Marshal(g_Groups)
+
+func clientinfo(c echo.Context) error {
+	return c.String(http.StatusOK, ToJson(client))
+}
+
+func allUserlist(c echo.Context) error {
+	return c.String(http.StatusOK, ToJson(client.g_AllUser))
+}
+
+func ToJson(v interface{}) string {
+	data, err := json.Marshal(v)
 	if err != nil {
 		panic(err)
 	}
-
 	if string(data) != "null" {
-		return c.String(http.StatusOK, string(data))
+		return string(data)
 	} else {
-		return c.String(http.StatusOK, string("{}"))
+		return "{}"
 	}
-
 }
+
+func grouplist(c echo.Context) error {
+	return c.String(http.StatusOK, ToJson(client.g_Groups))
+}
+
 func login(c echo.Context) error {
 	//http://127.0.0.1:1323/login?serverip=sh.convnet.net&serverport=23&pass=firefoxinfo&username=yuyuhaso
 	username := formatinput(c.QueryParam("username"))
 	pass := formatinput(c.QueryParam("pass"))
-	g_serverip = formatinput(c.QueryParam("serverip"))
-	g_serverport = formatinput(c.QueryParam("serverport"))
+	client.ServerIP = formatinput(c.QueryParam("serverip"))
+	client.ServerPort = formatinput(c.QueryParam("serverport"))
 
-	err := ConnectServer(g_serverip, g_serverport)
+	err := ConnectServer(client.ServerIP, client.ServerPort)
 	if err != nil {
 		return c.String(http.StatusOK, "error"+err.Error())
 	} else {
-		g_isconnecttoserver = true
+		client.IsConnectToserver = true
 	}
-	g_serverip = strings.Split(g_conn.RemoteAddr().String(), ":")[0]
-	g_MyInnerIp = GetPulicIP(g_serverip + ":" + g_serverport)
+	client.ServerIP = strings.Split(client.g_conn.RemoteAddr().String(), ":")[0]
+
+	client.MyInnerIp = GetPulicIP(client.ServerIP + ":" + client.ServerPort)
 
 	//登录请求
 	sendCmd(ProtocolToStr(cmdLogin) + "," + username + "," + pass + ",00FFAC539CB9*")

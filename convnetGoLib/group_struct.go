@@ -11,10 +11,22 @@ type Group struct {
 	Users     []User
 }
 
-func (group *Group) UserJson() string {
-	data, err := json.Marshal(group.Users)
+func (group *Group) Json() string {
+	data, err := json.Marshal(group)
 	if err != nil {
 		panic(err)
 	}
 	return string(data)
+}
+
+func SliceClear(s *[]User) {
+	*s = append([]User{})
+}
+
+func (group *Group) ClearUser() {
+	SliceClear(&group.Users)
+}
+
+func (group *Group) Adduser(user *User) {
+	group.Users = append(group.Users, *user)
 }

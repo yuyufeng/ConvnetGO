@@ -97,8 +97,8 @@ func ExecUdpComand(conn *net.UDPConn, cmdField []string) {
 	//接收数据之前处理了
 	case cmdISClientUDP: //验证是否是本地UDP服务端口
 		if cmdField[1] == "ConVnet" {
-			g_HasUpnpUDPServer = true
-			g_MyNatType = NAT_CONE
+			client.HasUpnpUDP = true
+			client.MyNatType = NAT_CONE
 		}
 	case DISCONNECT:
 		cmdGetFriendInfoRespDecode(cmdField)
@@ -111,11 +111,11 @@ func ExecUdpComand(conn *net.UDPConn, cmdField []string) {
 
 func cmdUDP_P2PResp(conn *net.UDPConn, cmdField []string) {
 	//UDP服务端接收针对于P2P部分的处理
-	tmpuser := getUserByid(g_AllUser, Strtoint(cmdField[2]))
+	tmpuser := getUserByid(client.g_AllUser, Strtoint(cmdField[2]))
 	switch StrToProtocol(cmdField[1]) {
 	case UDP_C2C: //================>
 		//                        CMD                         TYPE                      ID           			   MAC
-		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_C2CResp) + "," + Inttostr(g_Userid) + "," + g_MyMac + ","
+		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_C2CResp) + "," + Inttostr(client.MyUserid) + "," + client.Mymac + ","
 		tmpuser.SendCmd(tmpstr)
 		//这种接入方式基本上只要知道了对方的对接端口就可以完成接入申请
 		//解释：如果知道了对方的IP和对接端口（很随机了），那么就认可为允许接入目前并无不可，当然确实是有安全隐患

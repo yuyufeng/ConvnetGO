@@ -4,21 +4,24 @@ import (
 	"net"
 )
 
-var (
-	g_conn *net.TCPConn
+type Client struct {
+	IsConnectToserver bool
+	ServerIP          string
+	ServerPort        string
+	ServerUdpPort     int
 
-	g_serverip          string
-	g_serverport        string
-	g_serverUdpPort     int
-	g_isconnecttoserver bool
-	g_MyNatType         int
-	g_HasUpnpUDPServer  bool
-	g_AllUser           []User
-	g_Groups            []Group
-	g_udpserver         *net.UDPConn
-	g_udpport           int
-	g_Userid            int
-	g_MyMac             string
-	g_MyIp              string
-	g_MyInnerIp         string //内网IP，用于内网互联
-)
+	HasUpnpUDP    bool
+	UdpServerPort int
+	MyNatType     int
+	MyUserid      int
+	Mymac         string
+	MyOuterIP     string
+	MyInnerIp     string //内网IP，用于内网互联
+
+	g_conn      *net.TCPConn
+	g_AllUser   []User
+	g_Groups    []Group
+	g_udpserver *net.UDPConn
+}
+
+var client Client

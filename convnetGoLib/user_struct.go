@@ -67,7 +67,10 @@ func (user *User) SendBuff(buff []byte) {
 
 func (user *User) TryConnect(userpass string) {
 
-	user.AuthorPassword = userpass
+	if userpass != "" {
+		user.AuthorPassword = userpass
+	}
+
 	if user.Needpass && user.AuthorPassword == "" { //需要密码
 		if user.Needpass {
 			Log(user, "需要密码")
@@ -79,11 +82,12 @@ func (user *User) TryConnect(userpass string) {
 
 	if user.Con_RetryTime < 7 {
 		user.Con_RetryTime++
-		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(g_Userid) + "," + Inttostr(user.Con_RetryTime) + "," + user.AuthorPassword + "*")
+		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(client.MyUserid) + "," + Inttostr(user.Con_RetryTime) + "," + user.AuthorPassword + "*")
 		user.Con_Status = CON_CONNECTING
 	} else { //user.Con_RetryTime > 7
 		user.Con_RetryTime = 0
 		user.Con_Status = CON_DISCONNECT
+		return
 	}
 
 }
