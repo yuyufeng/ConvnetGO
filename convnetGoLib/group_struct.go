@@ -5,9 +5,21 @@ import (
 	"sync"
 )
 
+type noCopy struct{}
+
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}
+
+type WaitGroup struct {
+	noCopy noCopy
+	state1 [3]uint32
+}
+
 type Group struct {
+	noCopy    noCopy
 	GroupName string
-	GroupID   int
+	GroupID   int64
 	Creator   int
 	GroupDes  string
 	NeedPass  bool
@@ -15,10 +27,12 @@ type Group struct {
 	sync.RWMutex
 }
 
-func (group *Group) Init() {
-	if group.Users == nil {
-		group.Users = make(map[int64]*User)
+func NewGroup() *Group {
+	var result = new(Group)
+	if result.Users == nil {
+		result.Users = make(map[int64]*User)
 	}
+	return result
 }
 
 func (group *Group) Json() string {
@@ -38,18 +52,23 @@ func (group *Group) ClearUser() {
 }
 
 func (group *Group) Adduser(user *User) {
+
+	if user.UserID == client.MyUserid {
+		return
+	}
+
 	group.Lock()
 	defer group.Unlock()
 	group.Users[user.UserID] = user
 }
 
-func (group *Group) getUserByid(userid int64) (user *User) {
+func (group *Group) GetUserByid(userid int64) (user *User) {
 	group.Lock()
 	defer group.Unlock()
 	return group.Users[userid]
 }
 
-func (group *Group) removeUserByid(userid int64) {
+func (group *Group) RemoveUserByid(userid int64) {
 	group.Lock()
 	defer group.Unlock()
 	delete(group.Users, userid)

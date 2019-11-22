@@ -2,7 +2,8 @@ package convnetlib
 
 func StartConsole() {
 
-	client.g_AllUser.Init()
+	client.g_AllUser = NewGroup()
+	client.g_Groups = make(map[int64]*Group)
 	client.g_AllUser.GroupName = "用户列表"
 
 	//创建本地UDP服务

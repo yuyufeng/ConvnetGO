@@ -58,7 +58,7 @@ func grouplist(c echo.Context) error {
 }
 
 func login(c echo.Context) error {
-	//http://127.0.0.1:1323/login?serverip=sh.convnet.net&serverport=23&pass=firefoxinfo&username=yuyuhaso
+	//http://127.0.0.1:1323/login?serverip=sh.convnet.net&serverport=23&pass=asdasd&username=yuyuhaso
 	username := formatinput(c.QueryParam("username"))
 	pass := formatinput(c.QueryParam("pass"))
 	client.ServerIP = formatinput(c.QueryParam("serverip"))

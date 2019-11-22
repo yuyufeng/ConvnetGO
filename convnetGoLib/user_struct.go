@@ -12,6 +12,7 @@ const (
 )
 
 type User struct {
+	noCopy       noCopy
 	con_AContext *net.UDPConn
 	Con_Status   int  //连接状态
 	ISOnline     bool //是否在线
@@ -82,7 +83,7 @@ func (user *User) TryConnect(userpass string) {
 
 	if user.con_RetryTime < 7 {
 		user.con_RetryTime++
-		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(client.MyUserid) + "," + Inttostr(user.con_RetryTime) + "," + user.AuthorPassword + "*")
+		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(int(client.MyUserid)) + "," + Inttostr(user.con_RetryTime) + "," + user.AuthorPassword + "*")
 		user.Con_Status = CON_CONNECTING
 	} else { //user.Con_RetryTime > 7
 		user.con_RetryTime = 0

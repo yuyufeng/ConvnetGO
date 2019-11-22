@@ -115,22 +115,21 @@ func Udpconfim(port string) string {
 
 func cmdOnlinetellRespDecode(cmdField []string) {
 	Log("用户上线", cmdField)
-	client.g_AllUser.getUserByid(1)
-	user := client.g_AllUser.getUserByid(Strtoint64(cmdField[2]))
+	user := client.g_AllUser.GetUserByid(Strtoint64(cmdField[2]))
 	user.TryConnect("")
 }
 
 func cmdKickOutRespDecode(cmdField []string) {
 	Log("用户离开组", cmdField)
-	user := client.g_AllUser.getUserByid(Strtoint64(cmdField[2]))
-	user.TryConnect("")
+	group := client.g_Groups[Strtoint64(cmdField[2])]
+	group.RemoveUserByid(Strtoint64(cmdField[2]))
 }
 
 func cmdCalltoUserRespDecode(cmdField []string) {
 	Log("用户请求连接", cmdField)
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
 	tmpuserid := Strtoint64(cmdField[2])
-	tmpuser := client.g_AllUser.getUserByid(tmpuserid)
+	tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
 	tmpuser.RefInfoByCmd(cmdField[3], cmdField[4], cmdField[5])
@@ -144,7 +143,7 @@ func cmdCalltoUserRespDecode(cmdField []string) {
 
 	case UDP_S2S, UDP_C2S:
 		Log("呼入方准备好直连")
-		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + ProtocolToStr(client.MyUserid) + "," + client.Mymac + ","
+		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + Inttostr(int(client.MyUserid)) + "," + client.Mymac + ","
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
@@ -168,20 +167,19 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 	//返回用户信息
 	var tmpGroup *Group
 	var strstep = 3
-	tmpGroup = getGroupByid(0)
+	tmpGroup = client.g_Groups[0]
 	if tmpGroup == nil {
-		tmpGroup = &Group{}
-		tmpGroup.Init()
+		tmpGroup = NewGroup()
 		tmpGroup.GroupID = 0
 		tmpGroup.GroupName = "好友组"
-		client.g_Groups = append(client.g_Groups, *tmpGroup)
+		client.g_Groups[0] = tmpGroup
 	} else {
 		tmpGroup.ClearUser()
 	}
-	tmpGroup = getGroupByid(0)
+
 	for i := 0; i < ((len(cmdField)-1)/strstep)-1; i++ {
 		tmpuserid := Strtoint64(cmdField[i*strstep+1])
-		tmpuser := client.g_AllUser.getUserByid(tmpuserid)
+		tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 
 		if tmpuser == nil {
 			user := &User{}
@@ -198,32 +196,28 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 
 func cmdGetGroupInfoRespDecode(cmdField []string) {
 	var strstep = 4
-	var tmpgourpid int
+	var tmpgourpid int64
 	var tmpGroup *Group
 	Log("组信息创建")
 
 	//Log("好友列表", cmdField)
 	for i := 0; i < ((len(cmdField)-1)/strstep)-1; i++ {
 		if cmdField[i*strstep+1] == "G" {
-			tmpgourpid, _ = strconv.Atoi(cmdField[i*strstep+3])
-			tmpGroup = getGroupByid(tmpgourpid)
+			tmpgourpid = Strtoint64(cmdField[i*strstep+3])
+			tmpGroup = client.g_Groups[tmpgourpid]
 			if tmpGroup == nil {
-				tmpGroup = new(Group)
-				tmpGroup.Init()
+				tmpGroup = NewGroup()
 				tmpGroup.GroupID = tmpgourpid
 				tmpGroup.GroupName = cmdField[i*strstep+2]
-				client.g_Groups = append(client.g_Groups, *tmpGroup)
+				client.g_Groups[tmpgourpid] = tmpGroup
 			} else {
 				tmpGroup.ClearUser()
 			}
 		}
 
-		//go语言这里一定要重新获取一下，出了赋值的作用域?
-		//应该是垃圾回收机制的问题，不重新get一下的话会毫无作用
-		tmpGroup = getGroupByid(tmpgourpid)
 		if cmdField[i*strstep+1] == "U" {
 			tmpuserid := Strtoint64(cmdField[i*strstep+3])
-			tmpuser := client.g_AllUser.getUserByid(tmpuserid)
+			tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 			if tmpuser == nil {
 				user := &User{}
 				user.UserID = tmpuserid
@@ -238,17 +232,8 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 	}
 }
 
-func getGroupByid(tmpgourpid int) *Group {
-	for i := 0; i < len(client.g_Groups); i++ {
-		if client.g_Groups[i].GroupID == tmpgourpid {
-			return &client.g_Groups[i]
-		}
-	}
-	return nil
-}
-
 func cmdUserNeedPassDecode(cmdField []string) {
-	user := client.g_AllUser.getUserByid(Strtoint64(cmdField[1]))
+	user := client.g_AllUser.GetUserByid(Strtoint64(cmdField[1]))
 	if user != nil {
 		user.Needpass = true
 		user.AuthorPassword = ""
@@ -259,8 +244,9 @@ func cmdLoginRespDecode(cmdField []string) { //实现Getname方法
 	switch cmdField[1] {
 	case "T":
 		Log("登录成功", cmdField)
+		Log("用户名：", cmdField[4], "用户IP", cmdField[2], "昵称", cmdField[5], "虚拟IP", cmdField[2])
 		client.MyOuterIP = cmdField[2]
-		client.MyUserid = Strtoint(cmdField[3])
+		client.MyUserid = Strtoint64(cmdField[3])
 		//获取NAT类型辅助确认端口
 		sendCmd(ProtocolToStr(cmdGetServerPort) + "*")
 		//获取好友列表
