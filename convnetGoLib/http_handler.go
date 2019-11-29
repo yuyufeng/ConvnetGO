@@ -13,16 +13,21 @@ func StartHttpServer(port, maxarea int) {
 
 	// Start server
 	for {
+
 		e := echo.New()
+		e.HideBanner = true
+
 		//绑定HTTP-API服务
 		SetApi(e)
 		err := e.Start("0.0.0.0:" + ProtocolToStr(httptport))
 		if err != nil {
+			Log("端口被占用，重启服务")
 			httptport++
 			if httptport > port+maxarea {
 				return
 			}
 		} else {
+			Log("APIU服务已启动于：", httptport)
 			break
 		}
 	}
@@ -56,6 +61,10 @@ func ToJson(v interface{}) string {
 func grouplist(c echo.Context) error {
 	return c.String(http.StatusOK, ToJson(client.g_Groups))
 }
+func logout(c echo.Context) error {
+	client.logout()
+	return c.String(http.StatusOK, "command sent ok")
+}
 
 func login(c echo.Context) error {
 	//http://127.0.0.1:1323/login?serverip=sh.convnet.net&serverport=23&pass=asdasd&username=yuyuhaso
@@ -70,11 +79,11 @@ func login(c echo.Context) error {
 	} else {
 		client.IsConnectToserver = true
 	}
-	client.ServerIP = strings.Split(client.g_conn.RemoteAddr().String(), ":")[0]
 
+	client.ServerIP = strings.Split(client.g_conn.RemoteAddr().String(), ":")[0]
 	client.MyInnerIp = GetPulicIP(client.ServerIP + ":" + client.ServerPort)
 
 	//登录请求
-	sendCmd(ProtocolToStr(cmdLogin) + "," + username + "," + pass + ",00FFAC539CB9*")
+	sendCmd(ProtocolToStr(cmdLogin) + "," + username + "," + pass + "," + Mymacstr() + "*")
 	return c.String(http.StatusOK, "command sent ok")
 }

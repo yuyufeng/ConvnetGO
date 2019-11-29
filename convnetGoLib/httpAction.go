@@ -14,4 +14,5 @@ func SetApi(e *echo.Echo) {
 	e.GET("/groupList", grouplist)
 	e.GET("/userList", allUserlist)
 	e.GET("/info", clientinfo)
+	e.GET("/logout", logout)
 }

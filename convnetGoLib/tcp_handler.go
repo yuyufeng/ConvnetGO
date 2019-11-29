@@ -31,7 +31,8 @@ func ConnectServer(server string, port string) error {
 func HandleConn() {
 	defer func() {
 		client.g_conn.Close()
-		client.IsConnectToserver = false
+
+		client.logout()
 		log.Printf(client.ServerIP + ":" + client.ServerPort + "连接断开")
 	}()
 	handleConnection(client.g_conn)
@@ -42,6 +43,7 @@ func Split_string(s string) []string {
 	return a
 }
 
+//获取外网IP
 func GetPulicIP(serveruri string) string {
 	conn, _ := net.Dial("tcp", serveruri)
 	defer conn.Close()
@@ -115,20 +117,24 @@ func Udpconfim(port string) string {
 
 func cmdOnlinetellRespDecode(cmdField []string) {
 	Log("用户上线", cmdField)
-	user := client.g_AllUser.GetUserByid(Strtoint64(cmdField[2]))
+	user := client.g_AllUser.GetUserByid(Strtoint(cmdField[2]))
 	user.TryConnect("")
 }
 
 func cmdKickOutRespDecode(cmdField []string) {
 	Log("用户离开组", cmdField)
-	group := client.g_Groups[Strtoint64(cmdField[2])]
-	group.RemoveUserByid(Strtoint64(cmdField[2]))
+	group := client.g_Groups[Strtoint(cmdField[2])]
+	group.RemoveUserByid(Strtoint(cmdField[2]))
+}
+
+func Mymacstr() string {
+	return string([]byte(client.Mymac))
 }
 
 func cmdCalltoUserRespDecode(cmdField []string) {
 	Log("用户请求连接", cmdField)
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
-	tmpuserid := Strtoint64(cmdField[2])
+	tmpuserid := Strtoint(cmdField[2])
 	tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
@@ -138,12 +144,13 @@ func cmdCalltoUserRespDecode(cmdField []string) {
 
 	case SAMEIP_CALL:
 		Log(tmpuser.UserName, "呼入方IP和本机相同")
-		sendCmd(ProtocolToStr(cmdSameipInfo) + "," + cmdField[2] + "," + ProtocolToStr(client.UdpServerPort) + "," + "0" + "," + client.Mymac + "," + client.MyInnerIp + "*")
+
+		sendCmd(ProtocolToStr(cmdSameipInfo) + "," + cmdField[2] + "," + ProtocolToStr(client.UdpServerPort) + "," + "0" + "," + Mymacstr() + "," + client.MyInnerIp + "*")
 		//CALL_TO_USER_RESP-UDP_S2S
 
 	case UDP_S2S, UDP_C2S:
 		Log("呼入方准备好直连")
-		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + Inttostr(int(client.MyUserid)) + "," + client.Mymac + ","
+		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + Inttostr(int(client.MyUserid)) + "," + Mymacstr() + ","
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
@@ -178,7 +185,7 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 	}
 
 	for i := 0; i < ((len(cmdField)-1)/strstep)-1; i++ {
-		tmpuserid := Strtoint64(cmdField[i*strstep+1])
+		tmpuserid := Strtoint(cmdField[i*strstep+1])
 		tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 
 		if tmpuser == nil {
@@ -196,14 +203,14 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 
 func cmdGetGroupInfoRespDecode(cmdField []string) {
 	var strstep = 4
-	var tmpgourpid int64
+	var tmpgourpid int
 	var tmpGroup *Group
 	Log("组信息创建")
 
 	//Log("好友列表", cmdField)
 	for i := 0; i < ((len(cmdField)-1)/strstep)-1; i++ {
 		if cmdField[i*strstep+1] == "G" {
-			tmpgourpid = Strtoint64(cmdField[i*strstep+3])
+			tmpgourpid = Strtoint(cmdField[i*strstep+3])
 			tmpGroup = client.g_Groups[tmpgourpid]
 			if tmpGroup == nil {
 				tmpGroup = NewGroup()
@@ -216,7 +223,7 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 		}
 
 		if cmdField[i*strstep+1] == "U" {
-			tmpuserid := Strtoint64(cmdField[i*strstep+3])
+			tmpuserid := Strtoint(cmdField[i*strstep+3])
 			tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 			if tmpuser == nil {
 				user := &User{}
@@ -233,7 +240,7 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 }
 
 func cmdUserNeedPassDecode(cmdField []string) {
-	user := client.g_AllUser.GetUserByid(Strtoint64(cmdField[1]))
+	user := client.g_AllUser.GetUserByid(Strtoint(cmdField[1]))
 	if user != nil {
 		user.Needpass = true
 		user.AuthorPassword = ""
@@ -246,7 +253,8 @@ func cmdLoginRespDecode(cmdField []string) { //实现Getname方法
 		Log("登录成功", cmdField)
 		Log("用户名：", cmdField[4], "用户IP", cmdField[2], "昵称", cmdField[5], "虚拟IP", cmdField[2])
 		client.MyOuterIP = cmdField[2]
-		client.MyUserid = Strtoint64(cmdField[3])
+		client.MyUserid = Strtoint(cmdField[3])
+
 		//获取NAT类型辅助确认端口
 		sendCmd(ProtocolToStr(cmdGetServerPort) + "*")
 		//获取好友列表

@@ -235,9 +235,9 @@ func ProtocolToStr(protostr int) string {
 	return strconv.Itoa(protostr)
 }
 
-func StrToProtocol(str string) int64 {
+func StrToProtocol(str string) int {
 	i, _ := strconv.ParseInt(str, 10, 0)
-	return i
+	return int(i)
 }
 
 func BytesToInt(b []byte) int {
