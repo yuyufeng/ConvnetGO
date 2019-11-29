@@ -40,7 +40,7 @@ func TapInit() {
 	self := net.IP(data)           //转换成ip
 
 	dataCh, errCh := startRead(client.g_ifce) //启动网卡
-
+	Log("myCvnIP:", self)
 	setupIfce(net.IPNet{IP: self, Mask: mask}, client.g_ifce.Name()) //网卡地址绑定
 
 	for { //塞入chain
