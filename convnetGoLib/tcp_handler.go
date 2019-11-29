@@ -273,7 +273,7 @@ func cmdLoginRespDecode(cmdField []string) { //实现Getname方法
 		Log("用户名：", cmdField[4], "用户IP", cmdField[2], "昵称", cmdField[5], "虚拟IP", cmdField[2])
 		client.MyOuterIP = cmdField[2]
 		client.MyUserid = Strtoint(cmdField[3])
-
+		Setip()
 		//获取NAT类型辅助确认端口
 		sendCmd(ProtocolToStr(cmdGetServerPort) + "*")
 		//获取好友列表

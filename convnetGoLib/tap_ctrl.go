@@ -12,6 +12,20 @@ import (
 	"github.com/songgao/water/waterutil"
 )
 
+func Setip() {
+	var ip = 0x0A000000
+	var mask = net.IPv4Mask(255, 255, 255, 0)
+
+	offset := (client.MyUserid / 254) * 2   //每255个地址中.0和.255无法使用
+	ip = ip + int(client.MyUserid) + offset //补位网络地址和广播地址
+
+	data, _ := IntToBytes32(ip, 4) //换算为byte
+	self := net.IP(data)           //转换成ip
+
+	Log("myCvnIP:", self)
+	setupIfce(net.IPNet{IP: self, Mask: mask}, client.g_ifce.Name()) //网卡地址绑定
+}
+
 func TapInit() {
 
 	if client.g_ifce == nil {
@@ -30,18 +44,7 @@ func TapInit() {
 
 	}
 
-	var ip = 0x0A000000
-	var mask = net.IPv4Mask(255, 255, 255, 0)
-
-	offset := (client.MyUserid / 254) * 2   //每255个地址中.0和.255无法使用
-	ip = ip + int(client.MyUserid) + offset //补位网络地址和广播地址
-
-	data, _ := IntToBytes32(ip, 4) //换算为byte
-	self := net.IP(data)           //转换成ip
-
 	dataCh, errCh := startRead(client.g_ifce) //启动网卡
-	Log("myCvnIP:", self)
-	setupIfce(net.IPNet{IP: self, Mask: mask}, client.g_ifce.Name()) //网卡地址绑定
 
 	for { //塞入chain
 		select {
