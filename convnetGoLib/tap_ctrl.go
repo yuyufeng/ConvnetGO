@@ -19,15 +19,13 @@ func TapInit() {
 
 		ifce, err := water.New(water.Config{
 			DeviceType: water.TAP,
-			PlatformSpecificParams: water.PlatformSpecificParams{
-				ComponentID: "tap0901",
-				Network:     "10.0.0.1/24",
-			},
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
-		client.Mymac = ifce.Mac()
+
+		client.Mymac = GetMymac(ifce.Name())
+
 		client.g_ifce = ifce
 		defer func() {
 			if err := ifce.Close(); err != nil {
