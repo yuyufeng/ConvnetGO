@@ -22,6 +22,7 @@ func setupIfce(ipNet net.IPNet, dev string) {
 }
 
 func teardownIfce(ifce *water.Interface) {
+	client.g_ifce = nil
 	if err := ifce.Close(); err != nil {
 		Log(err)
 	}
