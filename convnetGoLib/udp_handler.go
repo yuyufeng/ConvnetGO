@@ -108,7 +108,7 @@ func ExecUdpComand(conn *net.UDPConn, remoteAddr *net.UDPAddr, cmdField []string
 	switch StrToProtocol(cmdField[0]) {
 	//接收数据之前处理了
 	case cmdISClientUDP: //验证是否是本地UDP服务端口
-		if cmdField[1] == "ConVnet" {
+		if cmdField[1] == "ConVnetCheck"+GenToken() {
 			client.HasUpnpUDP = true
 			client.MyNatType = NAT_CONE
 		}
@@ -126,6 +126,7 @@ func cmdUDP_P2PResp(conn *net.UDPConn, remoteAddr *net.UDPAddr, cmdField []strin
 	//Log("Udp resp", cmdField)
 	tmpuser := client.g_AllUser.GetUserByid(Strtoint(cmdField[2]))
 
+	Log(tmpuser.UserNickName, "已经成功连接")
 	//这种接入方式基本上只要知道了对方的对接端口就可以完成接入申请
 	//解释：如果知道了对方的IP和对接端口（很随机了），那么就认可为允许接入目前并无不可，当然确实是有安全隐患
 	//TODO:服务器应该为双方的握手行为加上TOKEN校验
@@ -135,7 +136,7 @@ func cmdUDP_P2PResp(conn *net.UDPConn, remoteAddr *net.UDPAddr, cmdField []strin
 		responseportocol := ProtocolToStr(StrToProtocol(cmdField[1]) + 1) //+1(response)
 		//收到就成功握手，回应请求完成握手
 		//                        CMD                 TYPE         				ID           			   MAC
-		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + responseportocol + "," + Inttostr(int(client.MyUserid)) + "," + Mymacstr() + ","
+		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + responseportocol + "," + Inttostr(int(client.MyUserid)) + "," + mymacstr() + ","
 		//UDP握手应答
 		UdpSend(conn, tmpstr, remoteAddr)
 

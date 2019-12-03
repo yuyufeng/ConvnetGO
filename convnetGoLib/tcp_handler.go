@@ -1,7 +1,6 @@
 package convnetlib
 
 import (
-	"fmt"
 	"log"
 
 	"net"
@@ -69,7 +68,8 @@ func ExecComand(cmdField []string) {
 		cmdCalltoUserRespDecode(cmdField)
 	case cmdKickOutResp:
 		cmdKickOutRespDecode(cmdField)
-
+	case cmdSameipInforesp:
+		cmdSameipInforesppDecode(cmdField)
 	default:
 		Log("尚未实现", cmdField)
 	}
@@ -130,13 +130,13 @@ func cmdKickOutRespDecode(cmdField []string) {
 	group.RemoveUserByid(Strtoint(cmdField[2]))
 }
 
-func Mymacstr() string {
-	str := client.Mymac.String()
+func mymacstr() string {
+	str := client.mymac.String()
 
 	return strings.ToUpper(strings.Replace(str, ":", "", -1))
 }
 
-func GetMymac(etherName string) net.HardwareAddr {
+func Getmymac(etherName string) net.HardwareAddr {
 
 	// 获取本机的MAC地址
 	interfaces, err := net.Interfaces()
@@ -144,9 +144,9 @@ func GetMymac(etherName string) net.HardwareAddr {
 		panic("Error : " + err.Error())
 	}
 	for _, inter := range interfaces {
-		mac := inter.HardwareAddr //获取本机MAC地址
+		//mac := inter.HardwareAddr //获取本机MAC地址
 		if etherName == inter.Name {
-			fmt.Println("MAC = ", mac)
+			//fmt.Println("MAC = ", mac)
 			return inter.HardwareAddr
 		}
 	}
@@ -154,38 +154,60 @@ func GetMymac(etherName string) net.HardwareAddr {
 	return nil
 }
 
+func cmdSameipInforesppDecode(cmdField []string) {
+
+	tmpuserid := Strtoint(cmdField[1])
+	tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
+	Log(tmpuser.UserNickName, "相同IP内网呼叫")
+	if tmpuser == nil {
+		return
+	}
+	tmpuser.Dissconnect()
+	tmpuser.con_addr = &net.UDPAddr{IP: net.ParseIP(cmdField[5]), Port: Strtoint(cmdField[2])}
+	tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2S) + "," + Inttostr(client.MyUserid) + "," + mymacstr() + ","
+	UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
+}
+
 func cmdCalltoUserRespDecode(cmdField []string) {
 	Log("用户请求连接", cmdField)
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
 	tmpuserid := Strtoint(cmdField[2])
 	tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
+	if tmpuser == nil {
+		return
+	}
 
-	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
 	//tmpuser.RefInfoByCmd(cmdField[3], cmdField[4], cmdField[5])
-
 	switch StrToProtocol(cmdField[1]) {
 
 	case SAMEIP_CALL:
 		Log(cmdField)
 		Log(tmpuser.UserNickName, "呼入方IP和本机相同")
-		Log("通知对方", ProtocolToStr(cmdSameipInfo)+","+cmdField[2]+","+ProtocolToStr(client.UdpServerPort)+","+"0"+","+Mymacstr()+","+client.MyInnerIp+"*")
-		sendCmd(ProtocolToStr(cmdSameipInfo) + "," + cmdField[2] + "," + ProtocolToStr(client.UdpServerPort) + "," + "0" + "," + Mymacstr() + "," + client.MyInnerIp + "*")
-		//CALL_TO_USER_RESP-UDP_S2S
+		Log("通知对方", ProtocolToStr(cmdSameipInfo)+","+cmdField[2]+","+ProtocolToStr(client.UdpServerPort)+","+"0"+","+mymacstr()+","+client.MyInnerIp+"*")
+		//通知对方使用本地IP进行尝试通讯，跳转到UDP_S2S或者UDPC2S
+		sendCmd(ProtocolToStr(cmdSameipInfo) + "," + cmdField[2] + "," + ProtocolToStr(client.UdpServerPort) + "," + "0" + "," + mymacstr() + "," + client.MyInnerIp + "*")
 
 	case UDP_S2S, UDP_C2S:
 		Log("呼入方准备好直连")
-		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + Inttostr(int(client.MyUserid)) + "," + Mymacstr() + ","
-		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
+		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_S2SResp) + "," + Inttostr(int(client.MyUserid)) + "," + mymacstr() + ","
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 		UdpSend(client.g_udpserver, tmpstr, tmpuser.con_addr)
 	case UDP_GETPORT:
+		//本地不具备UPNP连接的情况下服务器要求本地准备一个临时端口
+		//获取临时端口后绑定给用户
+		//通知服务器我已准备好，可以尝试握手
+		Log("为", tmpuser.UserNickName, "准备本地对撞端口")
+		tmpuser.Dissconnect()
 		int, conn := GetPortFromServer(client.ServerUdpPort, 10800, client.ServerIP, true)
 		tmpuser.con_AContext = conn
 		if client.MyNatType == NAT_SYMMETRIC {
-			int++
+			int++ //如果是非对称端口下次通讯端口号至少+1，先尝试到这个程度，一般可以奏效，不行也就只能再做步长猜测了
+			//TODO，可以进一步尝试端口号编号步长猜测
 		}
 		sendCmd(ProtocolToStr(cmdCalltoUserNewPort) + "," + cmdField[2] + "," + Inttostr(int) + "*")
 	case TCP_SvrTrans:
+		Log(tmpuser.UserNickName, "服务器转发接入")
+		//7次打洞全部失败，服务器允许的情况下会建立TCP转发
 		tmpuser := client.g_AllUser.GetUserByid(Strtoint(cmdField[2]))
 		tmpuser.Con_Status = CON_CONNOK
 		tmpuser.Con_conType = 2
@@ -197,6 +219,18 @@ func cmdGetServerPortRespDecode(cmdField []string) {
 	Log("获取udp服务", cmdField[1], cmdField[2])
 	CheckNat(cmdField[1], cmdField[2])
 	client.ServerUdpPort = Strtoint(cmdField[1])
+	var mynat string
+	switch client.MyNatType {
+	case NAT_UNKNOW:
+		mynat = "UK"
+	case NAT_UPNP, NAT_CONE:
+		mynat = "CN"
+	case NAT_SYMMETRIC:
+		mynat = "SN"
+	}
+	//通知服务器本地NAT类型，是否可以upnp直连
+	//						cmd							type				udpport					tcpport&endstar
+	sendCmd(ProtocolToStr(cmdRenewUserStatus) + "," + mynat + "," + Inttostr(client.ServerUdpPort) + ",0*")
 }
 
 func cmdGetFriendInfoRespDecode(cmdField []string) {
@@ -223,12 +257,12 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 			user.UserNickName = cmdField[i*strstep+2]
 			user.ISOnline = cmdField[i*strstep+3] == "T"
 			client.g_AllUser.Adduser(user)
+
 			tmpGroup.Adduser(user)
 		} else {
 			tmpGroup.Adduser(tmpuser)
 		}
 	}
-
 }
 
 func cmdGetGroupInfoRespDecode(cmdField []string) {
@@ -286,7 +320,9 @@ func cmdLoginRespDecode(cmdField []string) { //实现Getname方法
 		Log("登录成功", cmdField)
 		Log("用户名：", cmdField[4], "用户IP", cmdField[2], "昵称", cmdField[5])
 		client.MyOuterIP = cmdField[2]
+
 		client.MyUserid = Strtoint(cmdField[3])
+		go CheckUpnp()
 
 		Setip()
 		//获取NAT类型辅助确认端口

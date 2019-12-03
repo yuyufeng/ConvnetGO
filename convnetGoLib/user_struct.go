@@ -31,25 +31,36 @@ type User struct {
 	Needpass      bool
 	con_addr      *net.UDPAddr
 	Con_conType   int //1 udp 2 tcptrans
+	CvnIP         string
 }
 
-//确认连接后的更新
+func (user *User) Dissconnect() {
+	if user.con_AContext != nil {
+		if user.con_AContext != client.g_udpserver {
+			user.con_AContext.Close()
+		}
+	}
+	user.con_AContext = nil
+	user.con_RetryTime = 0
+	user.MacAddress = nil
+	user.Con_Status = CON_DISCONNECT
+}
+
+//刷新用户信息，UDP握手触发刷新
 func (user *User) RefInfoByUdpPack(conn *net.UDPConn, remoteAddr *net.UDPAddr, mac string) {
+	//Log(user.UserNickName, "握手完成")
 	user.MacAddress = String2Mac(mac)
 	user.con_AContext = conn
 	strs := strings.Split(remoteAddr.String(), ":")
 	user.con_addr = &net.UDPAddr{IP: net.ParseIP(strs[0]), Port: Strtoint(strs[1])}
-
 	user.Con_Status = CON_CONNOK
 	user.Con_conType = 1
 	user.ISOnline = true
 }
 
-//刷新用户信息
+//刷新用户信息，
 func (user *User) RefInfoByCmd(ip, port, mac string) {
-
 	user.MacAddress = String2Mac(mac)
-
 	user.con_addr = &net.UDPAddr{IP: net.ParseIP(ip), Port: int(StrToProtocol(port))}
 	user.ISOnline = true
 }
@@ -79,13 +90,13 @@ func (user *User) SendBuff(buff []byte) {
 		buff = append([]byte(tempstr), buff...)
 		sendCmdBuff(buff)
 	}
-
 }
 
+//尝试连接用户
 func (user *User) TryConnect(userpass string) {
+	user.Dissconnect()
 	user.Con_Status = CON_DISCONNECT
-	user.con_AContext = nil
-	user.con_RetryTime = 3
+	user.con_RetryTime = 0
 	user.con_addr = nil
 
 RetryConnect:
@@ -107,8 +118,8 @@ RetryConnect:
 	}
 
 	if user.con_RetryTime < 7 {
+		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(int(user.UserID)) + "," + Inttostr(user.con_RetryTime) + "," + user.AuthorPassword + "*")
 		user.con_RetryTime++
-		sendCmd(ProtocolToStr(cmdCalltoUser) + "," + Inttostr(int(client.MyUserid)) + "," + Inttostr(user.con_RetryTime) + "," + user.AuthorPassword + "*")
 		user.Con_Status = CON_CONNECTING
 	} else { //user.Con_RetryTime > 7
 		user.con_RetryTime = 0
@@ -118,5 +129,4 @@ RetryConnect:
 
 	time.Sleep(time.Second * 3)
 	goto RetryConnect
-
 }

@@ -17,16 +17,19 @@ type Client struct {
 	UdpServerPort int
 	MyNatType     int
 	MyUserid      int
-	Mymac         net.HardwareAddr
+	Mymac         string
+	mymac         net.HardwareAddr
 
 	MyOuterIP string
 	MyInnerIp string //内网IP，用于内网互联
+	MyCvnIP   string
 
 	g_ifce      *water.Interface
 	g_conn      *net.TCPConn
 	g_AllUser   *Group
 	g_Groups    map[int]*Group
 	g_udpserver *net.UDPConn
+	g_authtoken string
 }
 
 var client Client

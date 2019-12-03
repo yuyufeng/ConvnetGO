@@ -58,7 +58,8 @@ func (group *Group) Adduser(user *User) {
 	if user.UserID == client.MyUserid {
 		return
 	}
-
+	//在添加的时候格式化显示CVNIP
+	user.CvnIP = GetCvnIP(user.UserID).String()
 	group.Lock()
 	defer group.Unlock()
 	group.Users[user.UserID] = user

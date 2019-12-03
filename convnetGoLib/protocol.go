@@ -31,6 +31,7 @@ const (
 )
 const (
 	NAT_UNKNOW = iota //0
+	NAT_UPNP
 	NAT_CONE
 	NAT_SYMMETRIC
 )
@@ -133,11 +134,11 @@ const (
 	cmdDissConnUserResp
 	//客户端确认端口
 	cmdISClientUDP
-	cmdP2P          //P2P
-	cmdKeeponLine   //心跳包
-	cmdUserNeedPass //用户需要密码
-	cmdSameipInfo   //相同IP应答
-	cmdSameipInforesp
+	cmdP2P            //P2P
+	cmdKeeponLine     //心跳包
+	cmdUserNeedPass   //用户需要密码
+	cmdSameipInfo     //相同IP应答
+	cmdSameipInforesp //66
 
 	cmdCheckNatType
 	cmdServerSendToClient
@@ -158,7 +159,7 @@ func reader(readerChannel chan []byte) {
 		case data := <-readerChannel:
 
 			//服务器转发
-			if data[0] == '0' {
+			if data[0] == '0' && len(data) > 12 {
 				index := bytes.Index(data, []byte("*"))
 				client.writeEther(data[index+1:])
 				continue

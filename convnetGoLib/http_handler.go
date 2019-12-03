@@ -38,6 +38,16 @@ func StartHttpServer(port, maxarea int) {
 func welcome(c echo.Context) error {
 	return c.String(http.StatusOK, "{\"info\":\"Convnet Api\"}")
 }
+func connectUser(c echo.Context) error {
+	userid := formatinput(c.QueryParam("userid"))
+	userpass := formatinput(c.QueryParam("userpass"))
+	userintid := Strtoint(userid)
+	user := client.g_AllUser.GetUserByid(userintid)
+	if user != nil {
+		go user.TryConnect(userpass)
+	}
+	return c.String(http.StatusOK, "command sent ok")
+}
 
 func clientinfo(c echo.Context) error {
 	return c.String(http.StatusOK, ToJson(client))
@@ -83,9 +93,9 @@ func login(c echo.Context) error {
 
 	client.ServerIP = strings.Split(client.g_conn.RemoteAddr().String(), ":")[0]
 	client.MyInnerIp = GetPulicIP(client.ServerIP + ":" + client.ServerPort)
-
-	Log(Mymacstr())
+	client.Mymac = mymacstr()
+	Log("TAP MAC:", client.Mymac)
 	//登录请求
-	sendCmd(ProtocolToStr(cmdLogin) + "," + username + "," + pass + "," + Mymacstr() + "*")
+	sendCmd(ProtocolToStr(cmdLogin) + "," + username + "," + pass + "," + mymacstr() + "*")
 	return c.String(http.StatusOK, "command sent ok")
 }

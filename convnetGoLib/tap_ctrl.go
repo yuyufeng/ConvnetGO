@@ -13,17 +13,22 @@ import (
 	"github.com/songgao/water/waterutil"
 )
 
-func Setip() {
-	var ip = 0x0A6E0001
-	var mask = net.IPv4Mask(255, 0, 0, 0)
-
-	offset := (client.MyUserid / 254) * 2   //每255个地址中.0和.255无法使用
-	ip = ip + int(client.MyUserid) + offset //补位网络地址和广播地址
-
+func GetCvnIP(userid int) net.IP {
+	var ip = 0x0A6E0000
+	userid++                       //和老版本适配
+	offset := (userid / 254) * 2   //每255个地址中.0和.255无法使用
+	ip = ip + int(userid) + offset //补位网络地址和广播地址
 	data, _ := IntToBytes32(ip, 4) //换算为byte
 	self := net.IP(data)           //转换成ip
+	return self
+}
 
+func Setip() {
+
+	var mask = net.IPv4Mask(255, 0, 0, 0)
+	self := GetCvnIP(client.MyUserid)
 	Log("myCvnIP:", self)
+	client.MyCvnIP = self.String()
 	setupIfce(net.IPNet{IP: self, Mask: mask}, client.g_ifce.Name()) //网卡地址绑定
 }
 
@@ -38,7 +43,7 @@ func TapInit() {
 			log.Fatal(err)
 		}
 
-		client.Mymac = GetMymac(ifce.Name())
+		client.mymac = Getmymac(ifce.Name())
 		Log("网卡名称:", ifce.Name())
 		client.g_ifce = ifce
 		defer teardownIfce(ifce)
@@ -50,7 +55,7 @@ func TapInit() {
 				tarmac := waterutil.MACDestination(buffer)
 				//查找用户，socket
 
-				if bytes.Equal(tarmac, client.Mymac) {
+				if bytes.Equal(tarmac, client.mymac) {
 					Log("ok")
 				}
 
