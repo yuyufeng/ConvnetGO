@@ -3,6 +3,7 @@ package convnetlib
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
@@ -13,8 +14,8 @@ import (
 )
 
 func Setip() {
-	var ip = 0x0A000000
-	var mask = net.IPv4Mask(255, 255, 255, 0)
+	var ip = 0x0A6E0001
+	var mask = net.IPv4Mask(255, 0, 0, 0)
 
 	offset := (client.MyUserid / 254) * 2   //每255个地址中.0和.255无法使用
 	ip = ip + int(client.MyUserid) + offset //补位网络地址和广播地址
@@ -38,51 +39,65 @@ func TapInit() {
 		}
 
 		client.Mymac = GetMymac(ifce.Name())
-
+		Log("网卡名称:", ifce.Name())
 		client.g_ifce = ifce
 		defer teardownIfce(ifce)
+		dataCh, errCh := startRead(client.g_ifce) //启动网卡
 
-	}
+		for { //塞入chain
+			select {
+			case buffer := <-dataCh:
+				tarmac := waterutil.MACDestination(buffer)
+				//查找用户，socket
 
-	dataCh, errCh := startRead(client.g_ifce) //启动网卡
+				if bytes.Equal(tarmac, client.Mymac) {
+					Log("ok")
+				}
 
-	for { //塞入chain
-		select {
-		case buffer := <-dataCh:
-			tarmac := waterutil.MACDestination(buffer)
-			//查找用户，socket
-
-			if bytes.Equal(tarmac, client.Mymac) {
-				Log("ok")
 				if !waterutil.IsBroadcast(waterutil.MACDestination(buffer)) {
 					user := GetUserByMac(tarmac)
 					if user != nil {
 						user.SendBuff(buffer)
+						//记录发送字节
+						user.Con_send = user.Con_send + int64(len(buffer))
 					}
 					continue
+				} else {
+					if buffer[12] == 8 && buffer[13] == 6 {
+						for _, v := range client.g_AllUser.Users {
+							if v.Con_Status == CON_CONNOK {
+								v.SendBuff(buffer)
+								//记录发送字节
+								v.Con_send = v.Con_send + int64(len(buffer))
+							}
+						}
+					}
 				}
-			}
 
-			fmt.Print(waterutil.MACDestination(buffer), ",")
-			//Log("received frame:\n", buffer)
-			continue
-		case err := <-errCh:
-			Log("read error:", err)
+				//fmt.Print(waterutil.MACDestination(buffer), ",")
+				//Log("received frame:\n", buffer)
+				continue
+			case err := <-errCh:
+				Log("TAP读取错误，请重启程序:", err)
+				break
+			}
 		}
 	}
 }
 
-const BUFFERSIZE = 1522
+const BUFFERSIZE = 1600
 
 func startRead(ifce *water.Interface) (dataChan <-chan []byte, errChan <-chan error) {
 	dataCh := make(chan []byte)
 	errCh := make(chan error)
 	go func() {
 		for {
+			//很奇怪，这里重新分配内存比固定一块内存所需要的消耗要小
 			buffer := make([]byte, BUFFERSIZE)
 			n, err := ifce.Read(buffer)
 			if err != nil {
 				errCh <- err
+				break
 			} else {
 				buffer = buffer[:n:n]
 				dataCh <- buffer
@@ -118,4 +133,9 @@ func IntToBytes32(n int, b byte) ([]byte, error) {
 		return bytesBuffer.Bytes(), nil
 	}
 	return nil, fmt.Errorf("IntToBytes b param is invaild")
+}
+
+func String2Mac(str string) net.HardwareAddr {
+	data, _ := hex.DecodeString(str)
+	return data
 }

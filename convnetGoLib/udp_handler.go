@@ -17,6 +17,7 @@ func SatrtUDPServer(localport, maxarea int) (int, *net.UDPConn) {
 		udpAddr, _ := net.ResolveUDPAddr("udp", defaultportstr)
 		net.ResolveUDPAddr("udp", defaultportstr)
 		conn, err := net.ListenUDP("udp", udpAddr)
+
 		//defer conn.Close()
 		if err != nil { //如果绑定失败
 			defaultport++ //换个端口
@@ -25,6 +26,9 @@ func SatrtUDPServer(localport, maxarea int) (int, *net.UDPConn) {
 				return 0, nil
 			}
 		} else {
+			conn.SetReadBuffer(1600)
+			conn.SetWriteBuffer(1600)
+			go udpProcess(conn)
 			return defaultport, conn
 		}
 	}
@@ -44,6 +48,9 @@ func GetPortFromServer(port, localport int, serverip string, keepconn bool) (int
 
 	for {
 		conn, err = net.DialUDP("udp", lAddr, rAddr1)
+		conn.SetReadBuffer(1600)
+		conn.SetWriteBuffer(1600)
+
 		if !keepconn {
 			defer conn.Close()
 		}
@@ -74,24 +81,29 @@ func GetPortFromServer(port, localport int, serverip string, keepconn bool) (int
 
 func udpProcess(conn *net.UDPConn) {
 	for {
-		data := make([]byte, 1024)
+		data := make([]byte, BUFFERSIZE)
 		n, remoteAddr, err := conn.ReadFromUDP(data)
-		fmt.Println(n, remoteAddr)
+		//fmt.Println(n)
 
 		if err != nil {
 			fmt.Println("failed to read UDP msg because of ", err.Error())
-			return
+			continue
+		}
+
+		if data[0] == '0' && n > 12 {
+			client.writeEther(data[2:])
+			continue
 		}
 
 		cmdField := strings.Split(string(data), ",")
 		//UDP服务端接收
-		ExecUdpComand(conn, cmdField)
+		ExecUdpComand(conn, remoteAddr, cmdField)
 	}
 }
 
 //UDPPACKE:|UDP_P2PResp|UDP_C2C|userid|mac|ordertoken
 
-func ExecUdpComand(conn *net.UDPConn, cmdField []string) {
+func ExecUdpComand(conn *net.UDPConn, remoteAddr *net.UDPAddr, cmdField []string) {
 	//UDP服务端接收
 	switch StrToProtocol(cmdField[0]) {
 	//接收数据之前处理了
@@ -103,29 +115,37 @@ func ExecUdpComand(conn *net.UDPConn, cmdField []string) {
 	case DISCONNECT:
 		cmdGetFriendInfoRespDecode(cmdField)
 	case UDP_P2PResp:
-		cmdUDP_P2PResp(conn, cmdField)
+		cmdUDP_P2PResp(conn, remoteAddr, cmdField)
 	default:
 		Log("尚未实现的ExecUdpComand", cmdField)
 	}
 }
 
-func cmdUDP_P2PResp(conn *net.UDPConn, cmdField []string) {
+func cmdUDP_P2PResp(conn *net.UDPConn, remoteAddr *net.UDPAddr, cmdField []string) {
 	//UDP服务端接收针对于P2P部分的处理
+	//Log("Udp resp", cmdField)
 	tmpuser := client.g_AllUser.GetUserByid(Strtoint(cmdField[2]))
-	switch StrToProtocol(cmdField[1]) {
-	case UDP_C2C: //================>
-		//                        CMD                         TYPE                      ID           			   MAC
-		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + ProtocolToStr(UDP_C2CResp) + "," + Inttostr(int(client.MyUserid)) + "," + Mymacstr() + ","
-		tmpuser.SendCmd(tmpstr)
-		//这种接入方式基本上只要知道了对方的对接端口就可以完成接入申请
-		//解释：如果知道了对方的IP和对接端口（很随机了），那么就认可为允许接入目前并无不可，当然确实是有安全隐患
-		//TODO:服务器应该为双方的握手行为加上TOKEN校验
-	case UDP_C2CResp, UDP_C2SResp, UDP_S2SResp: //    <================
-		tmpuser.RefInfoByPack(conn, cmdField[3])
-		tmpuser.Con_Status = CON_CONNOK
-	case ALL_NOTARRIVE:
-		tmpuser.Con_Status = CON_DISCONNECT
 
+	//这种接入方式基本上只要知道了对方的对接端口就可以完成接入申请
+	//解释：如果知道了对方的IP和对接端口（很随机了），那么就认可为允许接入目前并无不可，当然确实是有安全隐患
+	//TODO:服务器应该为双方的握手行为加上TOKEN校验
+	switch StrToProtocol(cmdField[1]) {
+	case UDP_C2C, UDP_C2S, UDP_S2S: //================>	握手应答
+		tmpuser.RefInfoByUdpPack(conn, remoteAddr, cmdField[3])
+		responseportocol := ProtocolToStr(StrToProtocol(cmdField[1]) + 1) //+1(response)
+		//收到就成功握手，回应请求完成握手
+		//                        CMD                 TYPE         				ID           			   MAC
+		tmpstr := ProtocolToStr(UDP_P2PResp) + "," + responseportocol + "," + Inttostr(int(client.MyUserid)) + "," + Mymacstr() + ","
+		//UDP握手应答
+		UdpSend(conn, tmpstr, remoteAddr)
+
+	case UDP_C2CResp, UDP_C2SResp, UDP_S2SResp: //    <================response无需应答
+		//收到就成功握手，回应请求完成握手
+		tmpuser.RefInfoByUdpPack(conn, remoteAddr, cmdField[3])
+
+	case ALL_NOTARRIVE:
+		tmpuser.Con_conType = 0
+		tmpuser.Con_Status = CON_DISCONNECT
 	default:
 		Log("尚未实现的cmdUDP_P2PResp", cmdField)
 	}

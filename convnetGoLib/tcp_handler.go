@@ -108,7 +108,7 @@ func Udpconfim(port string) string {
 	defer conn.Close()
 
 	conn.Write([]byte("a"))
-	buf := make([]byte, 1024)
+	buf := make([]byte, BUFFERSIZE)
 	conn.Read(buf)
 	if err != nil {
 		return ""
@@ -119,7 +119,9 @@ func Udpconfim(port string) string {
 func cmdOnlinetellRespDecode(cmdField []string) {
 	Log("用户上线", cmdField)
 	user := client.g_AllUser.GetUserByid(Strtoint(cmdField[2]))
-	user.TryConnect("")
+	if user != nil {
+		user.TryConnect("")
+	}
 }
 
 func cmdKickOutRespDecode(cmdField []string) {
@@ -129,7 +131,9 @@ func cmdKickOutRespDecode(cmdField []string) {
 }
 
 func Mymacstr() string {
-	return string([]byte(client.Mymac))
+	str := client.Mymac.String()
+
+	return strings.ToUpper(strings.Replace(str, ":", "", -1))
 }
 
 func GetMymac(etherName string) net.HardwareAddr {
@@ -157,13 +161,14 @@ func cmdCalltoUserRespDecode(cmdField []string) {
 	tmpuser := client.g_AllUser.GetUserByid(tmpuserid)
 
 	//cmd+连接协议+用户ID+用户IP+用户端口+用户mac
-	tmpuser.RefInfoByCmd(cmdField[3], cmdField[4], cmdField[5])
+	//tmpuser.RefInfoByCmd(cmdField[3], cmdField[4], cmdField[5])
 
 	switch StrToProtocol(cmdField[1]) {
 
 	case SAMEIP_CALL:
-		Log(tmpuser.UserName, "呼入方IP和本机相同")
-
+		Log(cmdField)
+		Log(tmpuser.UserNickName, "呼入方IP和本机相同")
+		Log("通知对方", ProtocolToStr(cmdSameipInfo)+","+cmdField[2]+","+ProtocolToStr(client.UdpServerPort)+","+"0"+","+Mymacstr()+","+client.MyInnerIp+"*")
 		sendCmd(ProtocolToStr(cmdSameipInfo) + "," + cmdField[2] + "," + ProtocolToStr(client.UdpServerPort) + "," + "0" + "," + Mymacstr() + "," + client.MyInnerIp + "*")
 		//CALL_TO_USER_RESP-UDP_S2S
 
@@ -180,6 +185,11 @@ func cmdCalltoUserRespDecode(cmdField []string) {
 			int++
 		}
 		sendCmd(ProtocolToStr(cmdCalltoUserNewPort) + "," + cmdField[2] + "," + Inttostr(int) + "*")
+	case TCP_SvrTrans:
+		tmpuser := client.g_AllUser.GetUserByid(Strtoint(cmdField[2]))
+		tmpuser.Con_Status = CON_CONNOK
+		tmpuser.Con_conType = 2
+		tmpuser.MacAddress = String2Mac(cmdField[3])
 	}
 }
 
@@ -210,7 +220,7 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 		if tmpuser == nil {
 			user := &User{}
 			user.UserID = tmpuserid
-			user.UserName = cmdField[i*strstep+2]
+			user.UserNickName = cmdField[i*strstep+2]
 			user.ISOnline = cmdField[i*strstep+3] == "T"
 			client.g_AllUser.Adduser(user)
 			tmpGroup.Adduser(user)
@@ -218,6 +228,7 @@ func cmdGetFriendInfoRespDecode(cmdField []string) {
 			tmpGroup.Adduser(tmpuser)
 		}
 	}
+
 }
 
 func cmdGetGroupInfoRespDecode(cmdField []string) {
@@ -247,7 +258,7 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 			if tmpuser == nil {
 				user := &User{}
 				user.UserID = tmpuserid
-				user.UserName = cmdField[i*strstep+2]
+				user.UserNickName = cmdField[i*strstep+2]
 				user.ISOnline = cmdField[i*strstep+4] == "T"
 				client.g_AllUser.Adduser(user)
 				tmpGroup.Adduser(user)
@@ -256,6 +267,9 @@ func cmdGetGroupInfoRespDecode(cmdField []string) {
 			}
 		}
 	}
+
+	sendCmd(ProtocolToStr(cmdOnlinetell) + "*")
+	Log("通知上线")
 }
 
 func cmdUserNeedPassDecode(cmdField []string) {
@@ -270,9 +284,10 @@ func cmdLoginRespDecode(cmdField []string) { //实现Getname方法
 	switch cmdField[1] {
 	case "T":
 		Log("登录成功", cmdField)
-		Log("用户名：", cmdField[4], "用户IP", cmdField[2], "昵称", cmdField[5], "虚拟IP", cmdField[2])
+		Log("用户名：", cmdField[4], "用户IP", cmdField[2], "昵称", cmdField[5])
 		client.MyOuterIP = cmdField[2]
 		client.MyUserid = Strtoint(cmdField[3])
+
 		Setip()
 		//获取NAT类型辅助确认端口
 		sendCmd(ProtocolToStr(cmdGetServerPort) + "*")

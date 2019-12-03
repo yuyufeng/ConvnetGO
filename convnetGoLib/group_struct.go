@@ -78,8 +78,8 @@ func (group *Group) RemoveUserByid(userid int) {
 
 func GetUserByMac(mac net.HardwareAddr) (user *User) {
 	group := client.g_AllUser
-	group.Lock()
-	defer group.Unlock()
+	// group.Lock()
+	// defer group.Unlock()
 	for i, v := range group.Users {
 		if bytes.Equal(v.MacAddress, mac) {
 			return group.Users[i]

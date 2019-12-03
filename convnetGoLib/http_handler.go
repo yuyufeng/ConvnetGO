@@ -20,6 +20,7 @@ func StartHttpServer(port, maxarea int) {
 		//绑定HTTP-API服务
 		SetApi(e)
 		err := e.Start("0.0.0.0:" + ProtocolToStr(httptport))
+
 		if err != nil {
 			Log("端口被占用，重启服务")
 			httptport++
@@ -27,7 +28,7 @@ func StartHttpServer(port, maxarea int) {
 				return
 			}
 		} else {
-			Log("APIU服务已启动于：", httptport)
+			Log("API服务已启动于：", httptport)
 			break
 		}
 	}
@@ -83,6 +84,7 @@ func login(c echo.Context) error {
 	client.ServerIP = strings.Split(client.g_conn.RemoteAddr().String(), ":")[0]
 	client.MyInnerIp = GetPulicIP(client.ServerIP + ":" + client.ServerPort)
 
+	Log(Mymacstr())
 	//登录请求
 	sendCmd(ProtocolToStr(cmdLogin) + "," + username + "," + pass + "," + Mymacstr() + "*")
 	return c.String(http.StatusOK, "command sent ok")

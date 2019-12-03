@@ -10,8 +10,7 @@ func StartConsole() {
 	client.UdpServerPort, client.g_udpserver = SatrtUDPServer(8080, 10)
 	//尝试打开UPNP
 	go UdpServerUpnpSet(client.UdpServerPort)
-	//TAP初始化
 	go TapInit()
 	//创建本地HTTP-API服务
-	StartHttpServer(8081, 10)
+	StartHttpServer(8082, 10)
 }

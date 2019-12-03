@@ -1,7 +1,6 @@
 package convnetlib
 
 import (
-	"encoding/hex"
 	"net"
 	"strings"
 	"time"
@@ -20,7 +19,7 @@ type User struct {
 	ISOnline     bool //是否在线
 
 	UserID         int
-	UserName       string
+	UserNickName   string
 	AuthorPassword string           //访问密码
 	MacAddress     net.HardwareAddr //MAC地址
 
@@ -31,25 +30,25 @@ type User struct {
 	con_lastSend  int64
 	Needpass      bool
 	con_addr      *net.UDPAddr
-	Con_conType   int //1 udpserver 2 udpclient 3 tcptrans
+	Con_conType   int //1 udp 2 tcptrans
 }
 
 //确认连接后的更新
-func (user *User) RefInfoByPack(conn *net.UDPConn, mac string) {
-	data, _ := hex.DecodeString(mac)
-	user.MacAddress = data
-
+func (user *User) RefInfoByUdpPack(conn *net.UDPConn, remoteAddr *net.UDPAddr, mac string) {
+	user.MacAddress = String2Mac(mac)
 	user.con_AContext = conn
-	addr := conn.RemoteAddr()
-	strs := strings.Split(addr.String(), ":")
+	strs := strings.Split(remoteAddr.String(), ":")
 	user.con_addr = &net.UDPAddr{IP: net.ParseIP(strs[0]), Port: Strtoint(strs[1])}
+
+	user.Con_Status = CON_CONNOK
+	user.Con_conType = 1
 	user.ISOnline = true
 }
 
 //刷新用户信息
 func (user *User) RefInfoByCmd(ip, port, mac string) {
-	data, _ := hex.DecodeString(mac)
-	user.MacAddress = net.HardwareAddr(data)
+
+	user.MacAddress = String2Mac(mac)
 
 	user.con_addr = &net.UDPAddr{IP: net.ParseIP(ip), Port: int(StrToProtocol(port))}
 	user.ISOnline = true
@@ -70,13 +69,17 @@ func (user *User) SendCmd(message string) {
 
 //发送信息
 func (user *User) SendBuff(buff []byte) {
-	if user.Con_conType != 3 {
+	switch user.Con_conType {
+	case 1: //UDP方式发送
+		buff = append([]byte("0,"), buff...)
 		UdpSendBuff(user.con_AContext, buff, user.con_addr)
-	} else { //服务器转发
+	case 2: //服务器转发
+		//			转发		myid						targetuserid			split	appendbuff
 		tempstr := "0," + Inttostr(client.MyUserid) + "," + Inttostr(user.UserID) + "*"
 		buff = append([]byte(tempstr), buff...)
 		sendCmdBuff(buff)
 	}
+
 }
 
 func (user *User) TryConnect(userpass string) {

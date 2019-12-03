@@ -17,13 +17,13 @@ const (
 	UDP_S2SResp
 	UDP_C2S
 	UDP_C2SResp
-	UDP_C2C
+	UDP_C2C //5
 	UDP_C2CResp
 	UDP_GETPORT
 	UDP_P2PResp
 	TCP_C2S
-	TCP_C2SResp
-	TCP_SvrTrans
+	TCP_C2SResp   //10
+	TCP_SvrTrans  //11
 	ALL_NOTARRIVE //所有方法无法到达
 	NOTCONNECT    //对方无法连接
 	DISCONNECT    //断开连接
@@ -156,6 +156,14 @@ func reader(readerChannel chan []byte) {
 	for {
 		select {
 		case data := <-readerChannel:
+
+			//服务器转发
+			if data[0] == '0' {
+				index := bytes.Index(data, []byte("*"))
+				client.writeEther(data[index+1:])
+				continue
+			}
+
 			cmdField := strings.Split(string(data), ",")
 			ExecComand(cmdField)
 		}
@@ -203,11 +211,10 @@ func Unpack(buffer []byte, readerChannel chan []byte) []byte {
 func handleConnection(conn net.Conn) {
 	//声明一个临时缓冲区，用来存储被截断的数据
 	tmpBuffer := make([]byte, 0)
-
 	//声明一个管道用于接收解包的数据
 	readerChannel := make(chan []byte, 16)
 	go reader(readerChannel)
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, BUFFERSIZE)
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
