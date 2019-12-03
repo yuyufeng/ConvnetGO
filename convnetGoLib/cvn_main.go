@@ -10,11 +10,11 @@ func StartConsole() {
 	//	client ————>g_Allusers———————————————————							|					—————————————
 	//		|								    |							|
 	//		|—————— g_Groups——————Group——————users——————>newUDPport<—————port knocking		<<<<----Peer client UDPport
-	//		|									|							|
-	//		|									|			 ———————————————————————————
-	//		|						Other Convnet User————>	| Convnet ShakeHand Server  |	<<<<----TCP server trans communication
-	//		|									|			 ———————————————————————————
-	//		|									|							|
+	//		|									 							|
+	//		|									 			 ———————————————————————————
+	//		|												| Convnet ShakeHand Server  |	<<<<----TCP server trans communication
+	//		|									 			 ———————————————————————————
+	//		|
 	//	Http Api(echo server)  ——>Login call peer opation————>JSON response
 	//															|
 	//														  UI layer
